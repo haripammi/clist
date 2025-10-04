@@ -1,35 +1,39 @@
+# CLIST Architecture
+
+## System Architecture Diagram
+
 ```mermaid
 flowchart TB
     subgraph Data["Data Sources & Processing"]
-        ContestSites["Contest Sites"]
-        Scheduler["Scheduler"]
-        Workers["RQ Workers"]
-        Queue["Redis Queue"]
+        ContestSites["Contest Sites (External APIs)"]
+        Scheduler["Scheduler (Cron + Django RQ)"]
+        Workers["RQ Workers (Python Background Tasks)"]
+        Queue["Redis Queue (Message Broker)"]
     end
 
     subgraph Core["Application Core"]
-        DB[(PostgreSQL)]
-        Django["Django"]
-        Channels["Channels"]
+        DB[(PostgreSQL Database)]
+        Django["Django (Python Web Framework)"]
+        Channels["Django Channels (WebSocket Handler)"]
     end
 
     subgraph Web["Web Layer"]
-        Nginx["Nginx"]
-        Static["Static"]
-        Templates["Templates"]
-        WebSocket["WebSocket"]
+        Nginx["Nginx (Web Server)"]
+        Static["Static Files (CSS/JS/Images)"]
+        Templates["Django Templates (HTML)"]
+        WebSocket["Daphne (ASGI Server)"]
     end
 
     subgraph Ext["External Services"]
-        Email["Email"]
-        Telegram["Telegram"]
-        OAuth["OAuth"]
+        Email["SMTP Server (Email)"]
+        Telegram["Telegram Bot API (Notifications)"]
+        OAuth["OAuth Providers (Authentication)"]
     end
 
     subgraph Obs["Observability"]
-        Metrics["Grafana"]
-        Logs["Loki"]
-        Errors["Sentry"]
+        Metrics["Grafana (Metrics Visualization)"]
+        Logs["Loki (Log Aggregation)"]
+        Errors["Sentry (Error Tracking)"]
     end
 
     %% Main Data Flow
@@ -63,25 +67,43 @@ flowchart TB
     class Nginx,Static,Templates,WebSocket web
     class Email,Telegram,OAuth external
     class Metrics,Logs,Errors monitoring
-
-    classDef core fill:#e1f5fe,stroke:#01579b
-    classDef web fill:#f3e5f5,stroke:#4a148c
-    classDef external fill:#fbe9e7,stroke:#bf360c
-    classDef monitoring fill:#e8f5e9,stroke:#1b5e20
-    
-    class Scheduler,Queue,Workers,DB,Django,Channels core
-    class WebSocket,Nginx,Static,Templates web
-    class Email,Telegram,OAuth external
-    class Loki,Sentry,Grafana monitoring
 ```
 
-    classDef core fill:#e1f5fe,stroke:#01579b
-    classDef web fill:#f3e5f5,stroke:#4a148c
-    classDef external fill:#fbe9e7,stroke:#bf360c
-    classDef monitoring fill:#e8f5e9,stroke:#1b5e20
-    
-    class Scheduler,Queue,Workers,DB,Django,Channels,WebSocket core
-    class Nginx,Static,Templates,Users web
-    class Email,Telegram,OAuth external
-    class Grafana,Loki,Sentry monitoring
-```
+## Technology Stack Details
+
+### Data Sources & Processing
+- **Contest Sites**: External programming contest platforms accessed via HTTP APIs
+- **Scheduler**: Combination of system Cron jobs and Django-RQ for scheduled tasks
+- **RQ Workers**: Python-based background task processors using Django-RQ
+- **Redis Queue**: Redis server acting as message broker and task queue
+
+### Application Core
+- **PostgreSQL**: Main relational database (v14.3)
+- **Django**: Python web framework (with REST framework for APIs)
+- **Channels**: Django Channels for WebSocket/real-time functionality
+
+### Web Layer
+- **Nginx**: High-performance web server and reverse proxy
+- **Static Files**: Served through Nginx with compression
+- **Templates**: Django template engine with Bootstrap
+- **Daphne**: ASGI server for WebSocket handling
+
+### External Services
+- **Email**: SMTP server integration for notifications
+- **Telegram**: Bot API integration for notifications and commands
+- **OAuth**: Multiple OAuth providers for authentication (social login)
+
+### Observability
+- **Grafana**: Metrics visualization and dashboards
+- **Loki**: Log aggregation and search
+- **Sentry**: Real-time error tracking and monitoring
+
+### Key Technologies Used
+- Python 3.10
+- Django
+- PostgreSQL 14.3
+- Redis
+- Nginx
+- Django RQ
+- Django Channels
+- Docker & Docker Compose
