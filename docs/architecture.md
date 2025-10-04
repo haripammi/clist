@@ -1,54 +1,88 @@
+```mermaid
 flowchart LR
-  %% External sources
-  A[Contest Sites<br/>Input: HTTP API] 
+    %% External sources on left
+    ContestSites["Contest Sites<br/>Input: HTTP API"]
 
-  %% Scheduler triggers
-  Scheduler[Scheduler<br/>Technology: Celery Beat / Cron<br/>Input: Time triggers<br/>Output: Runs Scraper Commands]
+    %% Background processing on left
+    subgraph Processing["Background Processing"]
+        direction TB
+        Scheduler["Scheduler<br/>(Cron/RQ)"]
+        Queue["Redis Queue"]
+        Workers["RQ Workers"]
+    end
 
-  %% Scrapers
-  ScraperCmds[Scraper Commands<br/>Technology: Python scripts<br/>Input: Scheduler, Contest Sites<br/>Output: Pushes data to Redis Queue]
+    %% Core in center
+    subgraph CoreSystem["Core System"]
+        direction TB
+        DB[(PostgreSQL)]
+        Django["Django Server"]
+        Channels["Django Channels"]
+        WebSocket["WebSocket Server"]
+    end
 
-  %% Task Queue
-  Queue[Redis Queue<br/>Technology: Redis<br/>Input: Scraper data<br/>Output: Tasks for Celery Workers]
+    %% Web interface on right
+    subgraph WebInterface["Web Interface"]
+        direction TB
+        Nginx["Nginx Server"]
+        Static["Static Assets"]
+        Templates["Templates"]
+        Users["Users/Browsers"]
+    end
 
-  %% Workers
-  Workers[Celery Workers<br/>Technology: Python, Celery<br/>Input: Tasks from Redis Queue<br/>Output: Write to Postgres DB, trigger Notifications, emit metrics/errors]
+    %% External services on far right
+    subgraph ExternalServices["External Services"]
+        direction TB
+        Email["Email Service"]
+        Telegram["Telegram API"]
+        OAuth["OAuth Providers"]
+    end
 
-  %% Database
-  DB[Postgres DB<br/>Technology: Postgres<br/>Input: Writes from Workers, Reads from Django Views<br/>Output: Contest/Event/Account data]
+    %% Monitoring on bottom
+    subgraph Monitoring["Monitoring"]
+        direction LR
+        Grafana["Grafana"]
+        Loki["Loki"]
+        Sentry["Sentry"]
+    end
 
-  %% Web/API
-  Users[Users<br/>Input: Web/API requests] 
-  Views[Django Views<br/>Technology: Python, Django<br/>Input: Users<br/>Output: HTML/JSON responses]
-  Templates[HTML Templates<br/>Technology: Django templates<br/>Input: Views context<br/>Output: Rendered HTML]
-  Static[Static Assets<br/>Technology: CSS/JS<br/>Input: Served by Views<br/>Output: Browser UI]
+    %% Core Flows
+    ContestSites -->|"Fetch"| Workers
+    Scheduler -->|"Trigger"| Workers
+    Workers -->|"Store"| DB
+    Workers -->|"Queue"| Queue
+    Queue -->|"Process"| Workers
+    
+    %% Web Flows
+    Users -->|"HTTP"| Nginx
+    Nginx -->|"Proxy"| Django
+    Django -->|"Query"| DB
+    Django -->|"Use"| Templates
+    Django -->|"Serve"| Static
+    
+    %% Real-time
+    Users -->|"WebSocket"| WebSocket
+    WebSocket -->|"Channel"| Channels
+    Channels -->|"Pub/Sub"| Queue
+    
+    %% External Service Flows
+    Workers -->|"Send"| Email
+    Workers -->|"Notify"| Telegram
+    Users -->|"Auth"| OAuth
+    
+    %% Monitoring Flows
+    Django -->|"Logs"| Loki
+    Workers -->|"Logs"| Loki
+    Loki -->|"Visualize"| Grafana
+    Django -->|"Errors"| Sentry
+    Workers -->|"Errors"| Sentry
 
-  %% Notifications
-  Notify[Notification Workers<br/>Technology: Python<br/>Input: Contest events from Workers<br/>Output: Emails, Telegram messages, RSS feeds]
-  Email[Email - SMTP]
-  Telegram[Telegram Bot API]
-  RSS[RSS Feeds]
-
-  %% Observability
-  Grafana[Grafana - Metrics<br/>Input: Metrics from Workers/Views]
-  Netdata[Netdata - Metrics<br/>Input: Metrics from Workers/Views]
-  Sentry[Sentry - Errors<br/>Input: Errors from Workers/Views]
-
-  %% Flows
-  Scheduler --> ScraperCmds
-  A --> ScraperCmds
-  ScraperCmds --> Queue
-  Queue --> Workers
-  Workers --> DB
-  Workers --> Notify
-  Users --> Views
-  Views --> DB
-  Views --> Templates
-  Views --> Static
-  Notify --> Email
-  Notify --> Telegram
-  Notify --> RSS
-  Workers --> Grafana
-  Views --> Grafana
-  Workers --> Sentry
-  Views --> Sentry
+    classDef core fill:#e1f5fe,stroke:#01579b
+    classDef web fill:#f3e5f5,stroke:#4a148c
+    classDef external fill:#fbe9e7,stroke:#bf360c
+    classDef monitoring fill:#e8f5e9,stroke:#1b5e20
+    
+    class Scheduler,Queue,Workers,DB,Django,Channels,WebSocket core
+    class Nginx,Static,Templates,Users web
+    class Email,Telegram,OAuth external
+    class Grafana,Loki,Sentry monitoring
+```
