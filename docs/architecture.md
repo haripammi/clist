@@ -1,80 +1,79 @@
 ```mermaid
-flowchart LR
-    %% External sources on left
-    ContestSites["Contest Sites<br/>Input: HTTP API"]
-
-    %% Background processing on left
-    subgraph Processing["Background Processing"]
-        direction TB
-        Scheduler["Scheduler<br/>(Cron/RQ)"]
-        Queue["Redis Queue"]
+flowchart TB
+    subgraph Data["Data Sources & Processing"]
+        ContestSites["Contest Sites"]
+        Scheduler["Scheduler"]
         Workers["RQ Workers"]
+        Queue["Redis Queue"]
     end
 
-    %% Core in center
-    subgraph CoreSystem["Core System"]
-        direction TB
+    subgraph Core["Application Core"]
         DB[(PostgreSQL)]
-        Django["Django Server"]
-        Channels["Django Channels"]
-        WebSocket["WebSocket Server"]
+        Django["Django"]
+        Channels["Channels"]
     end
 
-    %% Web interface on right
-    subgraph WebInterface["Web Interface"]
-        direction TB
-        Nginx["Nginx Server"]
-        Static["Static Assets"]
+    subgraph Web["Web Layer"]
+        Nginx["Nginx"]
+        Static["Static"]
         Templates["Templates"]
-        Users["Users/Browsers"]
+        WebSocket["WebSocket"]
     end
 
-    %% External services on far right
-    subgraph ExternalServices["External Services"]
-        direction TB
-        Email["Email Service"]
-        Telegram["Telegram API"]
-        OAuth["OAuth Providers"]
+    subgraph Ext["External Services"]
+        Email["Email"]
+        Telegram["Telegram"]
+        OAuth["OAuth"]
     end
 
-    %% Monitoring on bottom
-    subgraph Monitoring["Monitoring"]
-        direction LR
-        Grafana["Grafana"]
-        Loki["Loki"]
-        Sentry["Sentry"]
+    subgraph Obs["Observability"]
+        Metrics["Grafana"]
+        Logs["Loki"]
+        Errors["Sentry"]
     end
 
-    %% Core Flows
-    ContestSites -->|"Fetch"| Workers
-    Scheduler -->|"Trigger"| Workers
-    Workers -->|"Store"| DB
-    Workers -->|"Queue"| Queue
-    Queue -->|"Process"| Workers
+    %% Main Data Flow
+    ContestSites --> Workers
+    Workers <--> Queue
+    Workers --> DB
     
-    %% Web Flows
-    Users -->|"HTTP"| Nginx
-    Nginx -->|"Proxy"| Django
-    Django -->|"Query"| DB
-    Django -->|"Use"| Templates
-    Django -->|"Serve"| Static
+    %% Web Flow
+    Nginx --> Django
+    Django --> DB
+    Django --> Static
+    Django --> Templates
     
-    %% Real-time
-    Users -->|"WebSocket"| WebSocket
-    WebSocket -->|"Channel"| Channels
-    Channels -->|"Pub/Sub"| Queue
+    %% Integration Flow
+    Django --> Ext
+    WebSocket --> Channels
+    Channels --> Queue
+
+    %% Simple Monitoring
+    Core --> Obs
+    Data --> Obs
+
+    classDef source fill:#dcedc8,stroke:#33691e
+    classDef core fill:#bbdefb,stroke:#0d47a1
+    classDef web fill:#e1bee7,stroke:#4a148c
+    classDef external fill:#ffccbc,stroke:#bf360c
+    classDef monitoring fill:#c8e6c9,stroke:#1b5e20
+
+    class ContestSites,Scheduler,Workers,Queue source
+    class DB,Django,Channels core
+    class Nginx,Static,Templates,WebSocket web
+    class Email,Telegram,OAuth external
+    class Metrics,Logs,Errors monitoring
+
+    classDef core fill:#e1f5fe,stroke:#01579b
+    classDef web fill:#f3e5f5,stroke:#4a148c
+    classDef external fill:#fbe9e7,stroke:#bf360c
+    classDef monitoring fill:#e8f5e9,stroke:#1b5e20
     
-    %% External Service Flows
-    Workers -->|"Send"| Email
-    Workers -->|"Notify"| Telegram
-    Users -->|"Auth"| OAuth
-    
-    %% Monitoring Flows
-    Django -->|"Logs"| Loki
-    Workers -->|"Logs"| Loki
-    Loki -->|"Visualize"| Grafana
-    Django -->|"Errors"| Sentry
-    Workers -->|"Errors"| Sentry
+    class Scheduler,Queue,Workers,DB,Django,Channels core
+    class WebSocket,Nginx,Static,Templates web
+    class Email,Telegram,OAuth external
+    class Loki,Sentry,Grafana monitoring
+```
 
     classDef core fill:#e1f5fe,stroke:#01579b
     classDef web fill:#f3e5f5,stroke:#4a148c
